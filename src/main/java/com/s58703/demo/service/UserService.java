@@ -1,17 +1,212 @@
 package com.s58703.demo.service;
 
+import com.s58703.demo.dto.UserRequest;
+import com.s58703.demo.dto.UserResponse;
+import com.s58703.demo.entities.Role;
 import com.s58703.demo.entities.User;
+import com.s58703.demo.exception.ResourceNotFoundException;
 import com.s58703.demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/**
+ * User Service
+ * Handles business logic for user operations
+ *
+ * Features:
+ * - CRUD operations
+ * - Partial updates (PATCH)
+ * - Password encryption
+ * - Data validation
+ */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public void save(User user){
-        userRepository.save(user);
+    /**
+     * Get all users (ADMIN only)
+     */
+    @Transactional(readOnly = true)
+    public List<UserResponse> getAllUsers() {
+        log.info("Fetching all users");
+        return userRepository.findAll().stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get user by ID
+     */
+    @Transactional(readOnly = true)
+    public UserResponse getUserById(Long id) {
+        log.info("Fetching user with id: {}", id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        return convertToResponse(user);
+    }
+
+    /**
+     * Create new user
+     */
+    @Transactional
+    public UserResponse createUser(UserRequest request) {
+        log.info("Creating new user with username: {}", request.getUsername());
+
+        // Check if username already exists
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new IllegalArgumentException("Username already exists: " + request.getUsername());
+        }
+
+        // Check if email already exists
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email already exists: " + request.getEmail());
+        }
+
+        User user = User.builder()
+                .username(request.getUsername())
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(Role.USER) // Default role
+                .build();
+
+        User saved = userRepository.save(user);
+        log.info("User created successfully with id: {}", saved.getId());
+
+        return convertToResponse(saved);
+    }
+
+    /**
+     * Update user (full update)
+     */
+    @Transactional
+    public UserResponse updateUser(Long id, UserRequest request) {
+        log.info("Updating user with id: {}", id);
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+
+        // Check if username is being changed and if it's already taken
+        if (!user.getUsername().equals(request.getUsername()) &&
+                userRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new IllegalArgumentException("Username already exists: " + request.getUsername());
+        }
+
+        // Check if email is being changed and if it's already taken
+        if (!user.getEmail().equals(request.getEmail()) &&
+                userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email already exists: " + request.getEmail());
+        }
+
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+
+        // Update password only if provided
+        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
+
+        User updated = userRepository.save(user);
+        log.info("User updated successfully with id: {}", updated.getId());
+
+        return convertToResponse(updated);
+    }
+
+    /**
+     * Patch user (partial update)
+     * Supports updating individual fields
+     */
+    @Transactional
+    public UserResponse patchUser(Long id, Map<String, Object> updates) {
+        log.info("Patching user with id: {} with updates: {}", id, updates.keySet());
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+
+        // Apply updates
+        updates.forEach((key, value) -> {
+            switch (key) {
+                case "username":
+                    String newUsername = (String) value;
+                    if (!user.getUsername().equals(newUsername) &&
+                            userRepository.findByUsername(newUsername).isPresent()) {
+                        throw new IllegalArgumentException("Username already exists: " + newUsername);
+                    }
+                    user.setUsername(newUsername);
+                    break;
+
+                case "email":
+                    String newEmail = (String) value;
+                    if (!user.getEmail().equals(newEmail) &&
+                            userRepository.findByEmail(newEmail).isPresent()) {
+                        throw new IllegalArgumentException("Email already exists: " + newEmail);
+                    }
+                    user.setEmail(newEmail);
+                    break;
+
+                case "password":
+                    String newPassword = (String) value;
+                    if (newPassword != null && !newPassword.isEmpty()) {
+                        user.setPassword(passwordEncoder.encode(newPassword));
+                    }
+                    break;
+
+                case "role":
+                    String roleName = (String) value;
+                    try {
+                        Role newRole = Role.valueOf(roleName.toUpperCase());
+                        user.setRole(newRole);
+                    } catch (IllegalArgumentException e) {
+                        throw new IllegalArgumentException("Invalid role: " + roleName);
+                    }
+                    break;
+
+                default:
+                    log.warn("Unknown field in patch request: {}", key);
+                    throw new IllegalArgumentException("Unknown field: " + key);
+            }
+        });
+
+        User patched = userRepository.save(user);
+
+        log.info("User patched successfully with id: {}", patched.getId());
+        return convertToResponse(patched);
+    }
+
+    /**
+     * Delete user
+     */
+    @Transactional
+    public void deleteUser(Long id) {
+        log.info("Deleting user with id: {}", id);
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+
+        userRepository.delete(user);
+        log.info("User deleted successfully with id: {}", id);
+    }
+
+    /**
+     * Convert User entity to UserResponse DTO
+     */
+    private UserResponse convertToResponse(User user) {
+        return UserResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .roleName(user.getRole().name())
+                .enabled(user.isEnabled())
+                .build();
     }
 }
