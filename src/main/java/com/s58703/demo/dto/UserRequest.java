@@ -7,11 +7,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * User Request DTO
- * Used for creating and updating user data
- * Includes validation constraints
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

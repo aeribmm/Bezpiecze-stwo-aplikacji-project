@@ -7,12 +7,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-import java.util.List;
 
-/**
- * CORS (Cross-Origin Resource Sharing) Configuration
- * Defines which origins, methods, and headers are allowed for cross-origin requests
- */
 @Configuration
 public class CorsConfig {
 
@@ -20,17 +15,13 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Allowed origins (domains that can make requests to this API)
-        // For development: use specific origins or "*" for testing
-        // For production: ALWAYS specify exact origins, never use "*"
         configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",  // React dev server
-                "http://localhost:4200",  // Angular dev server
-                "http://localhost:8080",  // Local testing
-                "https://localhost:8443"  // HTTPS local testing
+                "http://localhost:3000",
+                "http://localhost:4200",
+                "http://localhost:8080",
+                "https://localhost:8443"
         ));
 
-        // Allowed HTTP methods
         configuration.setAllowedMethods(Arrays.asList(
                 "GET",
                 "POST",
@@ -41,7 +32,6 @@ public class CorsConfig {
                 "HEAD"
         ));
 
-        // Allowed headers
         configuration.setAllowedHeaders(Arrays.asList(
                 "Authorization",
                 "Content-Type",
@@ -52,7 +42,6 @@ public class CorsConfig {
                 "Access-Control-Request-Headers"
         ));
 
-        // Exposed headers (headers that the browser can access)
         configuration.setExposedHeaders(Arrays.asList(
                 "Authorization",
                 "Content-Type",
@@ -61,16 +50,12 @@ public class CorsConfig {
                 "Cache-Control"
         ));
 
-        // Allow credentials (cookies, authorization headers)
         configuration.setAllowCredentials(true);
 
-        // Max age for preflight request caching (in seconds)
-        // Browser will cache the preflight response for this duration
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        // Apply CORS configuration to all endpoints
         source.registerCorsConfiguration("/**", configuration);
 
         return source;

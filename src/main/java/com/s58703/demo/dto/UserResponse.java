@@ -5,10 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * User Response DTO
- * Used for returning user data (without sensitive information like password)
- */
 @Data
 @Builder
 @NoArgsConstructor

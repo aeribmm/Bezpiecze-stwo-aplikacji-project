@@ -14,10 +14,9 @@ public class ErrorResponse {
 
     private int status;
     private String message;
-    private Map<String, String> errors; // Для валидационных ошибок
+    private Map<String, String> errors;
     private LocalDateTime timestamp;
 
-    // Конструктор для простых ошибок (без Map)
     public ErrorResponse(int status, String message, LocalDateTime timestamp) {
         this.status = status;
         this.message = message;

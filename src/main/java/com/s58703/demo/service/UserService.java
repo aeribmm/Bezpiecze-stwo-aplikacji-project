@@ -16,16 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * User Service
- * Handles business logic for user operations
- *
- * Features:
- * - CRUD operations
- * - Partial updates (PATCH)
- * - Password encryption
- * - Data validation
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -34,9 +24,6 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    /**
-     * Get all users (ADMIN only)
-     */
     @Transactional(readOnly = true)
     public List<UserResponse> getAllUsers() {
         log.info("Fetching all users");
@@ -45,9 +32,6 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Get user by ID
-     */
     @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
         log.info("Fetching user with id: {}", id);
@@ -56,19 +40,14 @@ public class UserService {
         return convertToResponse(user);
     }
 
-    /**
-     * Create new user
-     */
     @Transactional
     public UserResponse createUser(UserRequest request) {
         log.info("Creating new user with username: {}", request.getUsername());
 
-        // Check if username already exists
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new IllegalArgumentException("Username already exists: " + request.getUsername());
         }
 
-        // Check if email already exists
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new IllegalArgumentException("Email already exists: " + request.getEmail());
         }
@@ -77,7 +56,7 @@ public class UserService {
                 .username(request.getUsername())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.USER) // Default role
+                .role(Role.USER)
                 .build();
 
         User saved = userRepository.save(user);
@@ -86,9 +65,6 @@ public class UserService {
         return convertToResponse(saved);
     }
 
-    /**
-     * Update user (full update)
-     */
     @Transactional
     public UserResponse updateUser(Long id, UserRequest request) {
         log.info("Updating user with id: {}", id);
@@ -96,13 +72,11 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
-        // Check if username is being changed and if it's already taken
         if (!user.getUsername().equals(request.getUsername()) &&
                 userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new IllegalArgumentException("Username already exists: " + request.getUsername());
         }
 
-        // Check if email is being changed and if it's already taken
         if (!user.getEmail().equals(request.getEmail()) &&
                 userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new IllegalArgumentException("Email already exists: " + request.getEmail());
@@ -111,7 +85,6 @@ public class UserService {
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
 
-        // Update password only if provided
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
@@ -122,10 +95,6 @@ public class UserService {
         return convertToResponse(updated);
     }
 
-    /**
-     * Patch user (partial update)
-     * Supports updating individual fields
-     */
     @Transactional
     public UserResponse patchUser(Long id, Map<String, Object> updates) {
         log.info("Patching user with id: {} with updates: {}", id, updates.keySet());
@@ -133,7 +102,6 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
-        // Apply updates
         updates.forEach((key, value) -> {
             switch (key) {
                 case "username":
@@ -183,9 +151,6 @@ public class UserService {
         return convertToResponse(patched);
     }
 
-    /**
-     * Delete user
-     */
     @Transactional
     public void deleteUser(Long id) {
         log.info("Deleting user with id: {}", id);
@@ -197,9 +162,6 @@ public class UserService {
         log.info("User deleted successfully with id: {}", id);
     }
 
-    /**
-     * Convert User entity to UserResponse DTO
-     */
     private UserResponse convertToResponse(User user) {
         return UserResponse.builder()
                 .id(user.getId())
